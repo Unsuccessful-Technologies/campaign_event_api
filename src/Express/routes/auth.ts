@@ -45,7 +45,7 @@ const CreateSuccessfulLoginResult = (user: UserDocInternal): SuccessfulLoginResu
     console.log(payload)
     const token = sign(payload, config.secret)
     const result = {
-        user: clean_user,
+        data: clean_user,
         token
     }
     return result

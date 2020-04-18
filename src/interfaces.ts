@@ -13,7 +13,7 @@ export interface UserDocInternal extends User {
 }
 
 export interface SuccessfulLoginResult {
-    user: User;
+    data: User;
     token: string;
 }
 
