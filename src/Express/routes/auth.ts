@@ -1,8 +1,8 @@
-import {sign} from 'jsonwebtoken'
+import {sign, verify} from 'jsonwebtoken'
 import {NextFunction, Request, Response, Router} from "express";
-import {GetUserByEmail} from "../../Database";
+import {GetUserByEmail, GetUserByID} from "../../Database";
 import config from "../../config";
-import {SuccessfulLoginResult, TokenPayload, UserDocInternal} from "../../interfaces";
+import {EventTokenPayload, SuccessfulLoginResult, TokenPayload, UserDocInternal} from "../../interfaces";
 
 const router = Router()
 
@@ -26,7 +26,74 @@ const Login = async (req: Request, res: Response, next: NextFunction) => {
     }
 }
 
+
+const isAuthentic = (req: Request, res: Response, next: NextFunction) => {
+    const token: string = req.headers['token'] as string
+    try {
+        if(!token){
+            throw new Error('Not Authorized')
+        } else {
+            const payload = verify(token,config.secret)
+            if(payload){
+                req.headers.payload = JSON.stringify(payload)
+                next()
+            } else {
+                throw new Error('Not Authorized')
+            }
+        }
+    } catch(e){
+        console.log(e.message)
+        res.status(401).json({message:e.message})
+    }
+}
+
+const GetToken = async (req: Request, res: Response, next: NextFunction) => {
+    let { payload } = req.headers
+    const payloadJSON: TokenPayload = JSON.parse(<string>payload)
+    const {user_id} = payloadJSON
+    const { event_id } = req.params
+    try {
+        const token = sign({user_id, event_id}, config.secret)
+        res.status(200).json({token})
+    } catch (e) {
+        console.log(e.message)
+        res.status(500).json({
+            message: e.message
+        })
+    }
+}
+
+const Token = async (req: Request, res: Response, next: NextFunction) => {
+    let { payload } = req.headers
+    const payloadJSON: EventTokenPayload = JSON.parse(<string>payload)
+    const {user_id, event_id} = payloadJSON
+    const {event_id: event_id_param} = req.params
+    try {
+        if(event_id === event_id_param){
+            // TODO Also check if the user is allowed to authorize access to event_id
+            res.status(200).json({allowed:true})
+        } else {
+            res.status(200).json({allowed:false})
+        }
+    } catch (e) {
+        console.log(e.message)
+        res.status(500).json({
+            message: "Server Error"
+        })
+    }
+}
+
+
+
+
 router.post("/login", Login)
+
+router.use(isAuthentic)
+
+router.get("/token/:event_id", GetToken)
+
+router.get("/token/valid/:event_id", Token)
+
 
 export default router
 

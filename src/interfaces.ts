@@ -26,6 +26,10 @@ export interface TokenPayload {
     user_id: string;
 }
 
+export interface EventTokenPayload extends TokenPayload {
+    event_id: string;
+}
+
 export interface NewEventBody {
     token?: string;
     new_user?: CreateUserPayload;
