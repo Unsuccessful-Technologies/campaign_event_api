@@ -28,7 +28,7 @@ const Login = async (req: Request, res: Response, next: NextFunction) => {
 
 const Join = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const user: CreateUserPayload = req.body.user
+        const user: CreateUserPayload = req.body
         const { email } = user
         const userExists = await UserExists(email)
         if(userExists){
