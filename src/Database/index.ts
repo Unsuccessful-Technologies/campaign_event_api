@@ -53,6 +53,13 @@ export const GetUserByEmail = async (email: string): Promise<UserDocInternal> =>
     return GetUser(query)
 }
 
+export const UserExists = async (email: string): Promise<boolean> => {
+    let result = true
+    let user = await GetUserByEmail(email)
+    return result && !!user
+
+}
+
 export const GetUserByID = async (_id: string) => {
     const query = {_id}
     return GetUser(query)

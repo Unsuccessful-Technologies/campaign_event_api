@@ -1,8 +1,8 @@
 import {sign, verify} from 'jsonwebtoken'
 import {NextFunction, Request, Response, Router} from "express";
-import {GetUserByEmail, GetUserByID} from "../../Database";
+import {CreateUser, GetUserByEmail, UserExists} from "../../Database";
 import config from "../../config";
-import {EventTokenPayload, SuccessfulLoginResult, TokenPayload, UserDocInternal} from "../../interfaces";
+import {EventTokenPayload, CreateUserPayload, SuccessfulLoginResult, TokenPayload, UserDocInternal} from "../../interfaces";
 
 const router = Router()
 
@@ -26,6 +26,28 @@ const Login = async (req: Request, res: Response, next: NextFunction) => {
     }
 }
 
+const Join = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const user: CreateUserPayload = req.body.user
+        const { email } = user
+        const userExists = await UserExists(email)
+        if(userExists){
+            res.status(200).json({success: false, message: "User already exists."})
+        } else {
+            const userDoc: UserDocInternal = await CreateUser(user)
+            const {_id} = userDoc
+            if(_id){
+                // TODO Need to verify user through email
+                res.status(200).json({success: true, message: "Please login. User was successfully created."})
+            }
+        }
+    } catch (e) {
+        console.log(e.message)
+        res.status(500).json({
+            message: e.message
+        })
+    }
+}
 
 const isAuthentic = (req: Request, res: Response, next: NextFunction) => {
     const token: string = req.headers['token'] as string
@@ -87,6 +109,8 @@ const Token = async (req: Request, res: Response, next: NextFunction) => {
 
 
 router.post("/login", Login)
+
+router.post("/join", Join)
 
 router.use(isAuthentic)
 
