@@ -157,7 +157,6 @@ const ComparePasswords = (user: UserDocInternal, password: string): void => {
 
 const CreateSuccessfulLoginResult = async (user: UserDocInternal): Promise<SuccessfulLoginResult> => {
     const clean_user = {...user}
-    delete clean_user._id
     delete clean_user.password
     const payload: TokenPayload = {user_id: user._id}
     const token = sign(payload, config.secret)
