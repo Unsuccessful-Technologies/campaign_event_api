@@ -29,10 +29,10 @@ const NewEventHandler = async (req: Request, res: Response, next: NextFunction) 
         const base_event = MakeBaseEvent(user_id, organization_id, body.event)
 
         const result = await CreateEvent(base_event)
-        res.status(200).json(result)
+        res.status(200).json({success:true,...result})
     } catch (e) {
         console.log(e.message)
-        res.status(500).json(e)
+        res.status(200).json({success:false, message: e.message})
     }
 }
 
