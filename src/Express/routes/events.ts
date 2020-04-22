@@ -14,11 +14,11 @@ const NewEventHandler = async (req: Request, res: Response, next: NextFunction) 
     const {user_id} = payload
     const user_obj_id: ObjectId = new ObjectId(user_id)
     let organization_id: ObjectId
+    console.log("\n\n",body,"\n\n")
     try {
         if(body.organization_id && body.organization_id !== "new"){
             organization_id = new ObjectId(body.organization_id)
-        }
-        if(body.organization_id && body.organization_id === "new" && body.organization){
+        }else if(body.organization){
             let new_organization = await CreateOrganization({...body.organization, created_by_id: user_obj_id})
             organization_id = new ObjectId(new_organization._id)
         }
