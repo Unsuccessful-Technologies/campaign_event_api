@@ -8,7 +8,7 @@ import {
     SuccessfulLoginResult,
     TokenPayload,
     UserDocInternal,
-    TicketedEventDoc, FundRaiseEventDoc, OrganizationDoc
+    TicketedEventDoc, FundRaiseEventDoc, OrganizationDoc, UserEventsAndOrgsResponse
 } from "../../interfaces";
 
 const router = Router()
@@ -82,6 +82,21 @@ export const GetPayloadHeader = (req: Request): TokenPayload => {
     return payloadJSON
 }
 
+const GetProfileHandler = async (req: Request, res: Response, next: NextFunction) => {
+    const payload = GetPayloadHeader(req)
+    const {user_id} = payload
+
+    try {
+        const result = await GetUserEventsAndOrgs(user_id)
+        res.status(200).json(result)
+    } catch (e) {
+        console.log(e.message)
+        res.status(500).json({
+            message: e.message
+        })
+    }
+}
+
 const GetToken = async (req: Request, res: Response, next: NextFunction) => {
     let { payload } = req.headers
     const payloadJSON: TokenPayload = JSON.parse(<string>payload)
@@ -118,14 +133,13 @@ const Token = async (req: Request, res: Response, next: NextFunction) => {
     }
 }
 
-
-
-
 router.post("/login", Login)
 
 router.post("/join", Join)
 
 router.use(isAuthentic)
+
+router.get("/profile", GetProfileHandler)
 
 router.get("/token/:event_id", GetToken)
 
@@ -154,6 +168,16 @@ const CreateSuccessfulLoginResult = async (user: UserDocInternal): Promise<Succe
         events,
         organizations,
         token
+    }
+    return result
+}
+
+const GetUserEventsAndOrgs = async (user_id: string): Promise<UserEventsAndOrgsResponse> => {
+    const events: (TicketedEventDoc | FundRaiseEventDoc)[] = await GetEventsByUserID(user_id)
+    const organizations: OrganizationDoc[] = await GetOrganizationsByUserID(user_id)
+    const result = {
+        events,
+        organizations,
     }
     return result
 }

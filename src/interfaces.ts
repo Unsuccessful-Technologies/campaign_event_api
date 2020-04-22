@@ -118,3 +118,8 @@ export interface Organization {
 export interface OrganizationDoc extends Organization{
     _id: string | ObjectId ;
 }
+
+export interface UserEventsAndOrgsResponse {
+    events: (TicketedEventDoc | FundRaiseEventDoc) [];
+    organizations: OrganizationDoc []
+}
