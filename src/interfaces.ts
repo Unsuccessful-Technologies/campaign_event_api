@@ -46,7 +46,7 @@ export interface BaseEventRaw {
     description: string;
     start_date: string;
     end_date: string;
-    is_private: boolean;
+    is_private: string | boolean;
     keywords: string [];
     pic_urls: string [];
     contacts: Contacts [];
@@ -56,9 +56,9 @@ export interface BaseEventRaw {
 export interface BaseEvent extends BaseEventRaw {
     created_by_id: string | ObjectId;
     organization_id: string | ObjectId;
-    view_ids?: string [];
-    edit_ids?: string [];
-    member_ids?: string [];
+    admin_ids: string [];
+    view_ids: string [];
+    member_ids: string [];
 }
 
 export interface TicketedEventDoc extends BaseEvent {

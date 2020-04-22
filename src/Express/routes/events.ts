@@ -4,30 +4,25 @@ import {BaseEvent, BaseEventRaw, EventType, NewEventBody, TokenPayload} from "..
 import {verify} from "jsonwebtoken";
 import config from "../../config";
 import {CreateEvent, CreateOrganization, CreateUser, GetEventByID, UpdateEventByID} from "../../Database";
-import {isAuthentic} from "./auth";
+import {GetPayloadHeader, isAuthentic} from "./auth";
 
 const router = Router()
 
 const NewEventHandler = async (req: Request, res: Response, next: NextFunction) => {
     const body: NewEventBody = req.body
-    let user_id: ObjectId
+    const payload = GetPayloadHeader(req)
+    const {user_id} = payload
+    const user_obj_id: ObjectId = new ObjectId(user_id)
     let organization_id: ObjectId
     try {
-        if(body.token && !body.new_user){
-            user_id = GetUserId(body.token)
-        }
-        if(!body.token && body.new_user){
-            let new_user = await CreateUser({_id:user_id,...body.new_user})
-            user_id = new ObjectId(new_user._id)
-        }
         if(body.organization_id && !body.organization){
             organization_id = new ObjectId(body.organization_id)
         }
         if(!body.organization_id && body.organization){
-            let new_organization = await CreateOrganization({...body.organization, created_by_id: user_id})
+            let new_organization = await CreateOrganization({...body.organization, created_by_id: user_obj_id})
             organization_id = new ObjectId(new_organization._id)
         }
-        const base_event = MakeBaseEvent(user_id, organization_id, body.event)
+        const base_event = MakeBaseEvent(user_obj_id, organization_id, body.event)
 
         const result = await CreateEvent(base_event)
         res.status(200).json({success:true,...result})
@@ -43,6 +38,7 @@ const GetEventHandler = async (req: Request, res: Response, next: NextFunction) 
     const eventDoc = await GetEventByID(event_id)
 
     const CanUserSeeEvent = (token: string, eventDoc: BaseEvent): boolean => {
+        if(!token) return false
         const user_id = GetUserId(token).toString()
         return eventDoc.view_ids.includes(user_id)
     }
@@ -71,15 +67,14 @@ const GetEventHandler = async (req: Request, res: Response, next: NextFunction) 
 
 const UpdateEventHandler = async (req: Request, res: Response, next: NextFunction) => {
     const {event_id} = req.params
-    const { payload } = req.headers
     const { body } = req
-    const payloadJSON: TokenPayload = JSON.parse(<string>payload)
-    const {user_id} = payloadJSON
+    const payload: TokenPayload = GetPayloadHeader(req)
+    const {user_id} = payload
 
     const eventDoc = await GetEventByID(event_id)
 
     const CanUserEditEvent = (user_id: string, eventDoc: BaseEvent): boolean => {
-        return eventDoc.edit_ids.includes(user_id)
+        return eventDoc.admin_ids.includes(user_id)
     }
 
     try {
@@ -101,11 +96,12 @@ const UpdateEventHandler = async (req: Request, res: Response, next: NextFunctio
 
 }
 
-router.post("/", NewEventHandler)
 
 router.get("/:event_id", GetEventHandler)
 
 router.use(isAuthentic)
+
+router.post("/", NewEventHandler)
 
 router.post("/:event_id", UpdateEventHandler)
 
@@ -126,6 +122,10 @@ const MakeBaseEvent = (user_id: ObjectId, organization_id: ObjectId, event: Base
     return {
         created_by_id: user_id,
         ...event,
+        is_private: event.is_private === "true",
+        admin_ids: [user_id.toString()],
+        view_ids: [],
+        member_ids: [],
         organization_id
     }
 }

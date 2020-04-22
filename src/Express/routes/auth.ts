@@ -76,6 +76,12 @@ export const isAuthentic = (req: Request, res: Response, next: NextFunction) => 
     }
 }
 
+export const GetPayloadHeader = (req: Request): TokenPayload => {
+    const { payload } = req.headers
+    const payloadJSON: TokenPayload = JSON.parse(<string>payload)
+    return payloadJSON
+}
+
 const GetToken = async (req: Request, res: Response, next: NextFunction) => {
     let { payload } = req.headers
     const payloadJSON: TokenPayload = JSON.parse(<string>payload)
