@@ -13,7 +13,9 @@ export interface UserDocInternal extends User {
 }
 
 export interface SuccessfulLoginResult {
-    data: User;
+    user: User;
+    events: (TicketedEventDoc | FundRaiseEventDoc) [],
+    organizations: OrganizationDoc []
     token: string;
 }
 
@@ -54,6 +56,9 @@ export interface BaseEventRaw {
 export interface BaseEvent extends BaseEventRaw {
     created_by_id: string | ObjectId;
     organization_id: string | ObjectId;
+    view_ids?: string [];
+    edit_ids?: string [];
+    member_ids?: string [];
 }
 
 export interface TicketedEventDoc extends BaseEvent {
@@ -96,6 +101,7 @@ interface Contacts {
 }
 
 export interface Organization {
+    created_by_id: ObjectId;
     name: string;
     description: string;
     address: string;

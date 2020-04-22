@@ -1,5 +1,5 @@
 
-import { MongoClient, Db} from "mongodb";
+import { MongoClient, Db, ObjectId} from "mongodb";
 import config from "../config";
 import {
     BaseEvent,
@@ -75,6 +75,14 @@ export const CreateOrganization = async (payload: Organization): Promise<Organiz
     return result
 }
 
+export const GetOrganizationsByUserID = async (user_id: string): Promise<OrganizationDoc[]> => {
+    const Organizations = db.collection('Organizations')
+    const query = {created_by_id: new ObjectId(user_id)}
+    const response = await Organizations.find(query).toArray()
+    console.log(response)
+    return response
+}
+
 export const CreateEvent = async (payload: BaseEvent): Promise<{event_id: string}> => {
     const Events = db.collection('Events')
     const response = await Events.insertOne(payload)
@@ -82,4 +90,29 @@ export const CreateEvent = async (payload: BaseEvent): Promise<{event_id: string
         event_id: response.insertedId
     }
     return result
+}
+
+export const GetEventsByUserID = async (user_id: string): Promise<(TicketedEventDoc|FundRaiseEventDoc)[]> => {
+    const Events = db.collection('Events')
+    const query = {created_by_id: new ObjectId(user_id)}
+    const response = await Events.find(query).toArray()
+    console.log(response)
+    return response
+}
+
+export const GetEventByID = async (_id: string): Promise<TicketedEventDoc|FundRaiseEventDoc> => {
+    const Events = db.collection('Events')
+    const query = {_id: new ObjectId(_id)}
+    const response = await Events.findOne(query)
+    console.log(response)
+    return response
+}
+
+export const UpdateEventByID = async (_id: string, setOperation: {[propName: string]: any}): Promise<boolean> => {
+    const Events = db.collection('Events')
+    const query = {_id: new ObjectId(_id)}
+    const update = {$set:setOperation}
+    const response = await Events.updateOne(query, update)
+    console.log(response)
+    return response.result.ok === 1
 }
