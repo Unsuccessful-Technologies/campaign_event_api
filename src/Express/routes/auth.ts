@@ -8,7 +8,7 @@ import {
     SuccessfulLoginResult,
     TokenPayload,
     UserDocInternal,
-    TicketedEventDoc, FundRaiseEventDoc, OrganizationDoc, UserEventsAndOrgsResponse
+    TicketedEventDoc, FundRaiseEventDoc, OrganizationDoc, UserEventsAndOrgsResponse, AggBaseEvent
 } from "../../interfaces";
 
 const router = Router()
@@ -160,7 +160,7 @@ const CreateSuccessfulLoginResult = async (user: UserDocInternal): Promise<Succe
     delete clean_user.password
     const payload: TokenPayload = {user_id: user._id}
     const token = sign(payload, config.secret)
-    const events: (TicketedEventDoc|FundRaiseEventDoc)[] = await GetEventsByUserID(user._id)
+    const events: (AggBaseEvent)[] = await GetEventsByUserID(user._id)
     const organizations: OrganizationDoc[] = await GetOrganizationsByUserID(user._id)
     const result = {
         user: clean_user,
@@ -172,7 +172,7 @@ const CreateSuccessfulLoginResult = async (user: UserDocInternal): Promise<Succe
 }
 
 const GetUserEventsAndOrgs = async (user_id: string): Promise<UserEventsAndOrgsResponse> => {
-    const events: (TicketedEventDoc | FundRaiseEventDoc)[] = await GetEventsByUserID(user_id)
+    const events: (AggBaseEvent)[] = await GetEventsByUserID(user_id)
     const organizations: OrganizationDoc[] = await GetOrganizationsByUserID(user_id)
     const result = {
         events,

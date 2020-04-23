@@ -1,9 +1,17 @@
 import {NextFunction, Request, Response, Router} from "express";
 import {ObjectId} from 'bson'
-import {BaseEvent, BaseEventRaw, EventType, NewEventBody, TokenPayload} from "../../interfaces";
+import {
+    AggBaseEvent,
+    BaseEvent,
+    BaseEventRaw,
+    EventType,
+    NewEventBody,
+    TokenPayload,
+    UserDocInternal
+} from "../../interfaces";
 import {verify} from "jsonwebtoken";
 import config from "../../config";
-import {CreateEvent, CreateOrganization, CreateUser, GetEventByID, UpdateEventByID} from "../../Database";
+import {CreateEvent, CreateOrganization, CreateUser, GetEventByID, GetManyUsers, UpdateEventByID} from "../../Database";
 import {GetPayloadHeader, isAuthentic} from "./auth";
 
 const router = Router()
@@ -14,7 +22,6 @@ const NewEventHandler = async (req: Request, res: Response, next: NextFunction) 
     const {user_id} = payload
     const user_obj_id: ObjectId = new ObjectId(user_id)
     let organization_id: ObjectId
-    console.log("\n\n",body,"\n\n")
     try {
         if(body.organization_id && body.organization_id !== "new"){
             organization_id = new ObjectId(body.organization_id)
@@ -37,11 +44,19 @@ const GetEventHandler = async (req: Request, res: Response, next: NextFunction) 
     const {event_id} = req.params
     const eventDoc = await GetEventByID(event_id)
 
-    const CanUserSeeEvent = (token: string, eventDoc: BaseEvent): boolean => {
+    const CanUserSeeEvent = (token: string, eventDoc: AggBaseEvent): boolean => {
         if(!token) return false
         const user_id = GetUserId(token).toString()
-        return eventDoc.view_ids.includes(user_id)
+        const allowed_ids: {[propName:string]: boolean} = {}
+        eventDoc.admins.forEach(x => {
+            allowed_ids[x._id.toString()] = true
+        })
+        eventDoc.members.forEach(x => {
+            allowed_ids[x._id.toString()] = true
+        })
+        return !!allowed_ids[user_id]
     }
+
 
     try {
         if(eventDoc){
@@ -73,8 +88,12 @@ const UpdateEventHandler = async (req: Request, res: Response, next: NextFunctio
 
     const eventDoc = await GetEventByID(event_id)
 
-    const CanUserEditEvent = (user_id: string, eventDoc: BaseEvent): boolean => {
-        return eventDoc.admin_ids.includes(user_id)
+    const CanUserEditEvent = (user_id: string, eventDoc: AggBaseEvent): boolean => {
+        const allowed_ids: {[propName:string]: boolean} = {}
+        eventDoc.admins.forEach(x => {
+            allowed_ids[x._id.toString()] = true
+        })
+        return !!allowed_ids[user_id]
     }
 
     try {
@@ -124,7 +143,6 @@ const MakeBaseEvent = (user_id: ObjectId, organization_id: ObjectId, event: Base
         ...event,
         is_private: event.is_private === "true",
         admin_ids: [user_id.toString()],
-        view_ids: [],
         member_ids: [],
         organization_id
     }
