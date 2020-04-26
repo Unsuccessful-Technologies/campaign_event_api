@@ -76,7 +76,6 @@ export const GetManyUsers = async (user_ids: string []): Promise<UserDocInternal
     return await Users.find(query, {projection: {password: -1}}).toArray()
 }
 
-
 export const GetUserByEmail = async (email: string): Promise<UserDocInternal> => {
     const query = {email: email.toLowerCase()}
     return GetUser(query)

@@ -57,6 +57,7 @@ const GetEventHandler = async (req: Request, res: Response, next: NextFunction) 
         if(!token) return false
         const user_id = GetUserId(token).toString()
         const allowed_ids: {[propName:string]: boolean} = {}
+        allowed_ids[eventDoc.created_by_id.toString()] = true
         eventDoc.admins.forEach(x => {
             allowed_ids[x._id.toString()] = true
         })
