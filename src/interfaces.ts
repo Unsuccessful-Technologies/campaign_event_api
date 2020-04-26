@@ -27,6 +27,7 @@ export interface CreateUserPayload extends User {
 export interface UserSpaceHolder {
     email: string;
     _id: string | ObjectId;
+    notJoined: true;
 }
 
 export interface TokenPayload {

@@ -55,7 +55,8 @@ export const CreateUserSpaceHolder = async (email: string): Promise<UserSpaceHol
     const UserSpaceHolders = db.collection('UserSpaceHolders')
     const userScrubbed: UserSpaceHolder = {
         _id: new ObjectId(),
-        email: email
+        email: email,
+        notJoined: true
     }
     const response = await UserSpaceHolders.insertOne(userScrubbed)
     const result = response.insertedId
@@ -124,7 +125,11 @@ export const GetEventsByUserID = async (user_id: string): Promise<AggBaseEvent[]
     const pipeline: Object [] = [
         {
             $match: {
-                created_by_id: new ObjectId(user_id)
+                $or: [
+                    {created_by_id: new ObjectId(user_id)},
+                    {admin_ids: user_id.toString()},
+                    {member_ids: user_id.toString()}
+                ]
             }
         },
         ...EventPipeline

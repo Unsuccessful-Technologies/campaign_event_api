@@ -184,10 +184,7 @@ const AddUserHandler = async (req: Request, res: Response, next: NextFunction) =
         switch(type) {
             case 'admin': {
                 if(isUserAdmin(user_id,eventDoc)){
-                    const admin_ids = []
-                    const {admins} = eventDoc
-                    admins.forEach(x => admin_ids.push(x._id.toString()))
-                    admin_ids.push(new_user_id)
+                    const admin_ids = createNewUserArr(eventDoc.admins,new_user_id.toString())
                     const result = await UpdateEventByID(event_id, {admin_ids})
                     res.status(200).json({success: result, ids:[event_id]})
                 } else {
@@ -199,7 +196,16 @@ const AddUserHandler = async (req: Request, res: Response, next: NextFunction) =
                 break;
             }
             case 'member': {
-                throw {status: 400, message: "Not Yet Supported."}
+                if(!eventDoc.is_private || (isUserAdmin(user_id,eventDoc) || isUserMember(user_id,eventDoc))){
+                    const member_ids = createNewUserArr(eventDoc.members,new_user_id.toString())
+                    const result = await UpdateEventByID(event_id, {member_ids})
+                    res.status(200).json({success: result, ids:[event_id]})
+                } else {
+                    throw {
+                        status: 403,
+                        message: "Not Allowed"
+                    }
+                }
                 break;
             }
             default: throw {status:400,message:"Bad Request"}
@@ -225,13 +231,7 @@ const DeleteUserHandler = async (req: Request, res: Response, next: NextFunction
         switch(type) {
             case 'admin': {
                 if(isUserAdmin(user_id,eventDoc)){
-                    const admin_ids: string[] = []
-                    const {admins} = eventDoc
-                    admins.forEach(x => {
-                        if(x.email !== email){
-                            admin_ids.push(x._id.toString())
-                        }
-                    })
+                    const admin_ids: string[] = removeUserFromArr(eventDoc.admins, email)
                     const result = await UpdateEventByID(event_id, {admin_ids})
                     res.status(200).json({success: result, ids:[event_id]})
                 } else {
@@ -243,7 +243,16 @@ const DeleteUserHandler = async (req: Request, res: Response, next: NextFunction
                 break;
             }
             case 'member': {
-                throw {status: 400, message: "Not Yet Supported."}
+                if(!eventDoc.is_private || (isUserAdmin(user_id,eventDoc) || isUserMember(user_id,eventDoc))){
+                    const member_ids: string[] = removeUserFromArr(eventDoc.members, email)
+                    const result = await UpdateEventByID(event_id, {member_ids})
+                    res.status(200).json({success: result, ids:[event_id]})
+                } else {
+                    throw {
+                        status: 403,
+                        message: "Not Allowed"
+                    }
+                }
                 break;
             }
             default: throw {status:400,message:"Bad Request"}
@@ -309,4 +318,21 @@ const isUserMember = (user_id: string, eventDoc: AggBaseEvent): boolean => {
         allowed_ids[x._id.toString()] = true
     })
     return !!allowed_ids[user_id]
+}
+
+const createNewUserArr = (userArr: UserDocInternal[], new_user_id: string) => {
+    const arr = []
+    userArr.forEach(x => arr.push(x._id.toString()))
+    arr.push(new_user_id)
+    return arr
+}
+
+const removeUserFromArr = (userArr: UserDocInternal[], email: string) => {
+    const arr: string[] = []
+    userArr.forEach(x => {
+        if(x.email !== email){
+            arr.push(x._id.toString())
+        }
+    })
+    return arr
 }
