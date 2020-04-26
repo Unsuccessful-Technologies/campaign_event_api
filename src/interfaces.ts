@@ -50,8 +50,8 @@ export interface BaseEventRaw {
     name: string;
     description: string;
     start_date: string;
-    end_date: string;
     is_private: string | boolean;
+    is_searchable: string | boolean;
     keywords: string [];
     pic_urls: string [];
     contacts: Contacts [];
@@ -83,6 +83,7 @@ export interface TicketedEventDoc extends BaseEvent {
 
 export interface FundRaiseEventDoc extends BaseEvent {
     _id: string;
+    end_date: string;
     is_prize: boolean;
     prizes?: Prize [];
 }
