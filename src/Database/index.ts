@@ -8,7 +8,7 @@ import {
     FundRaiseEventDoc,
     Organization,
     OrganizationDoc, TicketedEventDoc,
-    UserDocInternal
+    UserDocInternal, UserSpaceHolder
 } from "../interfaces";
 
 let db: Db
@@ -36,13 +36,32 @@ export default StartDB
 
 export const CreateUser = async (payload: CreateUserPayload): Promise<UserDocInternal> => {
     const Users = db.collection('Users')
-    const response = await Users.insertOne(payload)
+    const userScrubbed: CreateUserPayload = {
+        fName: payload.fName.toLowerCase(),
+        lName: payload.lName.toLowerCase(),
+        email: payload.email.toLowerCase(),
+        phone: payload.phone,
+        password: payload.password
+    }
+    const response = await Users.insertOne(userScrubbed)
     const result = {
         ...payload,
         _id: response.insertedId
     }
     return result
 }
+
+export const CreateUserSpaceHolder = async (email: string): Promise<UserSpaceHolder> => {
+    const UserSpaceHolders = db.collection('UserSpaceHolders')
+    const userScrubbed: UserSpaceHolder = {
+        _id: new ObjectId(),
+        email: email
+    }
+    const response = await UserSpaceHolders.insertOne(userScrubbed)
+    const result = response.insertedId
+    return result
+}
+
 
 const GetUser = async (query: {[propName:string]: any}): Promise<UserDocInternal> => {
     const Users = db.collection('Users')
@@ -58,7 +77,7 @@ export const GetManyUsers = async (user_ids: string []): Promise<UserDocInternal
 
 
 export const GetUserByEmail = async (email: string): Promise<UserDocInternal> => {
-    const query = {email}
+    const query = {email: email.toLowerCase()}
     return GetUser(query)
 }
 
@@ -108,46 +127,7 @@ export const GetEventsByUserID = async (user_id: string): Promise<AggBaseEvent[]
                 created_by_id: new ObjectId(user_id)
             }
         },
-        {
-            $set: {
-                admin_ids: {
-                    $map: {
-                        input: "$admin_ids",
-                        as: "id",
-                        in: { $toObjectId: "$$id"}
-                    }
-                },
-                member_ids: {
-                    $map: {
-                        input: "$member_ids",
-                        as: "id",
-                        in: { $toObjectId: "$$id"}
-                    }
-                }
-            }
-        },
-        {
-            $lookup: {
-                from: "Users",
-                localField: "admin_ids",
-                foreignField: "_id",
-                as: "admins"
-            }
-        },
-        {
-            $lookup: {
-                from: "Users",
-                localField: "member_ids",
-                foreignField: "_id",
-                as: "members"
-            }
-        },
-        {
-            $project: {
-                admin_ids: 0,
-                member_ids: 0
-            }
-        }
+        ...EventPipeline
     ]
     const response = await Events.aggregate(pipeline).toArray()
     return response
@@ -161,46 +141,7 @@ export const GetEventByID = async (_id: string): Promise<AggBaseEvent> => {
                 _id: new ObjectId(_id)
             }
         },
-        {
-            $set: {
-                admin_ids: {
-                    $map: {
-                        input: "$admin_ids",
-                        as: "id",
-                        in: { $toObjectId: "$$id"}
-                    }
-                },
-                member_ids: {
-                    $map: {
-                        input: "$member_ids",
-                        as: "id",
-                        in: { $toObjectId: "$$id"}
-                    }
-                }
-            }
-        },
-        {
-            $lookup: {
-                from: "Users",
-                localField: "admin_ids",
-                foreignField: "_id",
-                as: "admins"
-            }
-        },
-        {
-            $lookup: {
-                from: "Users",
-                localField: "member_ids",
-                foreignField: "_id",
-                as: "members"
-            }
-        },
-        {
-            $project: {
-                admin_ids: 0,
-                member_ids: 0
-            }
-        }
+        ...EventPipeline
     ]
     const response = await Events.aggregate(pipeline).toArray()
     return response[0]
@@ -211,7 +152,6 @@ export const UpdateEventByID = async (_id: string, setOperation: {[propName: str
     const query = {_id: new ObjectId(_id)}
     const update = {$set:setOperation}
     const response = await Events.updateOne(query, update)
-    console.log(response)
     return response.result.ok === 1
 }
 
@@ -229,3 +169,84 @@ const MapUserToId = (event: BaseEvent, users: UserDocInternal[]) => {
     }
     return event
 }
+
+const EventPipeline = [
+    {
+        $lookup: {
+            from: "Organizations",
+            let: {id: "$organization_id"},
+            pipeline: [
+                {
+                    $match: {
+                        $expr: { $eq: ["$_id","$$id"]}
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        name: 1,
+                        description: 1
+                    }
+                }
+            ],
+            as: "organization"
+        }
+    },
+    {
+        $set: {
+            admin_ids: {
+                $map: {
+                    input: "$admin_ids",
+                    as: "id",
+                    in: { $toObjectId: "$$id"}
+                }
+            },
+            member_ids: {
+                $map: {
+                    input: "$member_ids",
+                    as: "id",
+                    in: { $toObjectId: "$$id"}
+                }
+            },
+            organization: { $arrayElemAt: ["$organization",0]}
+        }
+    },
+    {
+        $lookup: {
+            from: "Users",
+            localField: "admin_ids",
+            foreignField: "_id",
+            as: "admins"
+        }
+    },
+    {
+        $lookup: {
+            from: "UserSpaceHolders",
+            localField: "admin_ids",
+            foreignField: "_id",
+            as: "admin_space_holders"
+        }
+    },
+    {
+        $lookup: {
+            from: "Users",
+            localField: "member_ids",
+            foreignField: "_id",
+            as: "members"
+        }
+    },
+    {
+        $set : {
+            admins: {
+                $concatArrays: ["$admins", "$admin_space_holders"]
+            }
+        }
+    },
+    {
+        $project: {
+            admin_ids: 0,
+            member_ids: 0,
+            admin_space_holders: 0
+        }
+    }
+]

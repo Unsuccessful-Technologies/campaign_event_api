@@ -30,7 +30,14 @@ const config = {
         url: `mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@development-4jc08.mongodb.net/?retryWrites=true&w=majority`,
         database_name: "CampaignEvents"
     },
-    secret: "jwt_super_secret_password"
+    secret: "jwt_super_secret_password",
+    aws: {
+        ses_options: {
+            accessKeyId: "",
+            secretAccessKey: "",
+            region: "us-east-1"
+        }
+    }
 }
 
 export default config

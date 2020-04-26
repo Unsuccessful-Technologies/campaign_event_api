@@ -11,8 +11,17 @@ import {
 } from "../../interfaces";
 import {verify} from "jsonwebtoken";
 import config from "../../config";
-import {CreateEvent, CreateOrganization, CreateUser, GetEventByID, GetManyUsers, UpdateEventByID} from "../../Database";
+import {
+    CreateEvent,
+    CreateOrganization,
+    CreateUser, CreateUserSpaceHolder,
+    GetEventByID,
+    GetManyUsers,
+    GetUserByEmail,
+    UpdateEventByID
+} from "../../Database";
 import {GetPayloadHeader, isAuthentic} from "./auth";
+import {SESV2} from 'aws-sdk'
 
 const router = Router()
 
@@ -88,17 +97,9 @@ const UpdateEventHandler = async (req: Request, res: Response, next: NextFunctio
 
     const eventDoc = await GetEventByID(event_id)
 
-    const CanUserEditEvent = (user_id: string, eventDoc: AggBaseEvent): boolean => {
-        const allowed_ids: {[propName:string]: boolean} = {}
-        eventDoc.admins.forEach(x => {
-            allowed_ids[x._id.toString()] = true
-        })
-        return !!allowed_ids[user_id]
-    }
-
     try {
         if(eventDoc){
-            if(CanUserEditEvent(user_id, eventDoc)){
+            if(isUserAdmin(user_id, eventDoc)){
                 const result = await UpdateEventByID(event_id, body)
                 res.status(200).json({success: result})
             } else {
@@ -112,8 +113,147 @@ const UpdateEventHandler = async (req: Request, res: Response, next: NextFunctio
         res.status(500).json({message: e.message})
     }
 
-
 }
+
+const SendInviteHandler = async (req: Request, res: Response, next: NextFunction) => {
+    // TODO Plug in Email Solution
+
+    res.send(200).json({message:"Under Construction"})
+
+    const { body, params } = req
+    const { event_id } = params
+    const { email, message } = body
+    const email_params = {
+        FromEmailAddress: "owner@unsuccessfultech.com",
+        Destination: {
+            ToAddresses: [email]
+        },
+        Content: {
+            Simple:{
+                Subject: {
+                    Data: `Please join my event with id ${event_id}`,
+                    Charset: "UTF-8"
+                },
+                Body: {
+                    Html: {
+                        Data: `
+                            Please <a href="https://glenburchfield.com">Go here</a>
+                        `,
+                        Charset: "UTF-8"
+                    }
+                }
+            }
+        }
+    }
+    try {
+        // const sesv2 = new SESV2(config.aws.ses_options)
+        // sesv2.sendEmail(email_params, (err, response) => {
+        //     if(err){
+        //         throw err
+        //     } else {
+        //         console.log(response)
+        //         res.status(200).json(response)
+        //     }
+        // })
+    } catch(e) {
+        console.log(e)
+        res.status(500).json(e)
+    }
+}
+
+const AddUserHandler = async (req: Request, res: Response, next: NextFunction) => {
+    const { body, params } = req
+    const { type, email } = body
+    const { event_id } = params
+    const payload: TokenPayload = GetPayloadHeader(req)
+    const {user_id} = payload
+    try {
+        if( !(type === 'admin' || type === 'member') ){
+            res.status(400).json({message: "Invalid Type"})
+        }
+        const user = await GetUserByEmail(email)
+        const eventDoc = await GetEventByID(event_id)
+        let new_user_id = null
+
+        if(user){
+            new_user_id = user._id
+        } else {
+            new_user_id = await CreateUserSpaceHolder(email)
+        }
+
+        switch(type) {
+            case 'admin': {
+                if(isUserAdmin(user_id,eventDoc)){
+                    const admin_ids = []
+                    const {admins} = eventDoc
+                    admins.forEach(x => admin_ids.push(x._id.toString()))
+                    admin_ids.push(new_user_id)
+                    const result = await UpdateEventByID(event_id, {admin_ids})
+                    res.status(200).json({success: result, ids:[event_id]})
+                } else {
+                    throw {
+                        status: 403,
+                        message: "Not Allowed"
+                    }
+                }
+                break;
+            }
+            case 'member': {
+                throw {status: 400, message: "Not Yet Supported."}
+                break;
+            }
+            default: throw {status:400,message:"Bad Request"}
+        }
+    } catch(e) {
+        console.log(e)
+        res.status(e.status || 500).json(e)
+    }
+}
+
+const DeleteUserHandler = async (req: Request, res: Response, next: NextFunction) => {
+    const { body, params } = req
+    const { type, email } = body
+    const { event_id } = params
+    const payload: TokenPayload = GetPayloadHeader(req)
+    const {user_id} = payload
+    try {
+        if( !(type === 'admin' || type === 'member') ){
+            res.status(400).json({message: "Invalid Type"})
+        }
+        const eventDoc = await GetEventByID(event_id)
+
+        switch(type) {
+            case 'admin': {
+                if(isUserAdmin(user_id,eventDoc)){
+                    const admin_ids: string[] = []
+                    const {admins} = eventDoc
+                    admins.forEach(x => {
+                        if(x.email !== email){
+                            admin_ids.push(x._id.toString())
+                        }
+                    })
+                    const result = await UpdateEventByID(event_id, {admin_ids})
+                    res.status(200).json({success: result, ids:[event_id]})
+                } else {
+                    throw {
+                        status: 403,
+                        message: "Not Allowed"
+                    }
+                }
+                break;
+            }
+            case 'member': {
+                throw {status: 400, message: "Not Yet Supported."}
+                break;
+            }
+            default: throw {status:400,message:"Bad Request"}
+        }
+    } catch(e) {
+        console.log(e)
+        res.status(e.status || 500).json(e)
+    }
+}
+
 
 
 router.get("/:event_id", GetEventHandler)
@@ -123,6 +263,13 @@ router.use(isAuthentic)
 router.post("/", NewEventHandler)
 
 router.post("/:event_id", UpdateEventHandler)
+
+router.post('/invite/:event_id', SendInviteHandler)
+
+router.post('/user/:event_id', AddUserHandler)
+
+router.delete('/user/:event_id', DeleteUserHandler)
+
 
 export default router
 
@@ -146,4 +293,20 @@ const MakeBaseEvent = (user_id: ObjectId, organization_id: ObjectId, event: Base
         member_ids: [],
         organization_id
     }
+}
+
+const isUserAdmin = (user_id: string, eventDoc: AggBaseEvent): boolean => {
+    const allowed_ids: {[propName:string]: boolean} = {}
+    eventDoc.admins.forEach(x => {
+        allowed_ids[x._id.toString()] = true
+    })
+    return !!allowed_ids[user_id]
+}
+
+const isUserMember = (user_id: string, eventDoc: AggBaseEvent): boolean => {
+    const allowed_ids: {[propName:string]: boolean} = {}
+    eventDoc.members.forEach(x => {
+        allowed_ids[x._id.toString()] = true
+    })
+    return !!allowed_ids[user_id]
 }

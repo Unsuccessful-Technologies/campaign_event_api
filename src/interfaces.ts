@@ -24,6 +24,11 @@ export interface CreateUserPayload extends User {
     password: string;
 }
 
+export interface UserSpaceHolder {
+    email: string;
+    _id: string | ObjectId;
+}
+
 export interface TokenPayload {
     user_id: string;
 }
