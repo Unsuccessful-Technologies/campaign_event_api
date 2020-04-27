@@ -16,7 +16,7 @@ import {
     CreateOrganization,
     CreateUser, CreateUserSpaceHolder,
     GetEventByID,
-    GetManyUsers,
+    GetManyUsers, GetPublicEvents,
     GetUserByEmail,
     UpdateEventByID
 } from "../../Database";
@@ -24,6 +24,18 @@ import {GetPayloadHeader, isAuthentic} from "./auth";
 import {SESV2} from 'aws-sdk'
 
 const router = Router()
+
+const GetPublicEventsHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const events = await GetPublicEvents()
+        res.status(200).json(events)
+    } catch(e) {
+        console.log(e.message)
+        res.status(500).json({message: e.message})
+    }
+
+
+}
 
 const NewEventHandler = async (req: Request, res: Response, next: NextFunction) => {
     const body: NewEventBody = req.body
@@ -70,14 +82,14 @@ const GetEventHandler = async (req: Request, res: Response, next: NextFunction) 
 
     try {
         if(eventDoc){
-            if(eventDoc.is_private){
+            if(eventDoc.is_private === false || eventDoc.is_private === "false"){
+                res.status(200).json(eventDoc)
+            } else {
                 if(CanUserSeeEvent(<string>token, eventDoc)){
                     res.status(200).json(eventDoc)
                 } else {
                     res.status(403).json({message: "Not Allowed. Private Event."})
                 }
-            } else {
-                res.status(200).json(eventDoc)
             }
         } else {
             res.status(404).json({message:"No Event Found"})
@@ -264,7 +276,7 @@ const DeleteUserHandler = async (req: Request, res: Response, next: NextFunction
     }
 }
 
-
+router.get("/", GetPublicEventsHandler)
 
 router.get("/:event_id", GetEventHandler)
 

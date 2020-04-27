@@ -63,7 +63,6 @@ export const CreateUserSpaceHolder = async (email: string): Promise<UserSpaceHol
     return result
 }
 
-
 const GetUser = async (query: {[propName:string]: any}): Promise<UserDocInternal> => {
     const Users = db.collection('Users')
     return await Users.findOne(query)
@@ -149,6 +148,23 @@ export const GetEventByID = async (_id: string): Promise<AggBaseEvent> => {
     ]
     const response = await Events.aggregate(pipeline).toArray()
     return response[0]
+}
+
+export const GetPublicEvents = async (): Promise<AggBaseEvent[]> => {
+    const Events = db.collection('Events')
+    const pipeline: Object [] = [
+        {
+            $match: {
+                $or: [
+                    {is_private: false},
+                    {is_private: "false"}
+                ]
+            }
+        },
+        ...EventPipeline
+    ]
+    const response = await Events.aggregate(pipeline).toArray()
+    return response
 }
 
 export const UpdateEventByID = async (_id: string, setOperation: {[propName: string]: any}): Promise<boolean> => {
