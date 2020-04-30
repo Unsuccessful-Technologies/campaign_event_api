@@ -1,5 +1,5 @@
 FROM node:erbium
-WORKDIR /app2
+WORKDIR /app
 COPY ./src ./src
 COPY ./gulpfile.js ./
 COPY ./tsconfig.json ./
