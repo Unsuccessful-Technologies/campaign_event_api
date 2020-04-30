@@ -21,7 +21,6 @@ import {
     UpdateEventByID
 } from "../../Database";
 import {GetPayloadHeader, isAuthentic} from "./auth";
-import {SESV2} from 'aws-sdk'
 
 const router = Router()
 
