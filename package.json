@@ -5,7 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "npm run build && node dist/index.js",
-    "build": "gulp"
+    "build": "gulp",
+    "docker:build" : "docker build -t unsuccessful/campaign_event_api:local .",
+    "docker:run": "docker run -it --name campaign_event_api --env-file devops/local.env unsuccessful/campaign_event_api:local"
   },
   "repository": {
     "type": "git",
