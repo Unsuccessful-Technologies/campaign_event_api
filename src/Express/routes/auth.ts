@@ -1,6 +1,6 @@
 import {sign, verify} from 'jsonwebtoken'
 import {NextFunction, Request, Response, Router} from "express";
-import {CreateUser, GetEventsByUserID, GetOrganizationsByUserID, GetUserByEmail, UserExists} from "../../Database";
+import {commonCollectionHandlers, GetEventsByUserID, GetOrganizationsByUserID} from "../../Database";
 import config from "../../config";
 import {
     EventTokenPayload,
@@ -8,14 +8,19 @@ import {
     SuccessfulLoginResult,
     TokenPayload,
     UserDocInternal,
-    TicketedEventDoc, FundRaiseEventDoc, OrganizationDoc, UserEventsAndOrgsResponse, AggBaseEvent
+    TicketedEventDoc,
+    FundRaiseEventDoc,
+    OrganizationDoc,
+    UserEventsAndOrgsResponse,
+    AggBaseEvent
 } from "../../interfaces";
 
 const router = Router()
 
 const Login = async (req: Request, res: Response, next: NextFunction) => {
     const { email, password } = req.body
-    const user: UserDocInternal = await GetUserByEmail(email)
+    const controllers = await commonCollectionHandlers
+    const user: UserDocInternal = await controllers.Users.GetUserByEmail(email)
 
     try {
         if(user){
@@ -37,11 +42,13 @@ const Join = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const user: CreateUserPayload = req.body
         const { email } = user
-        const userExists = await UserExists(email)
+        const controllers = await commonCollectionHandlers
+        const userExists = await controllers.Users.UserExists(email)
         if(userExists){
             res.status(200).json({success: false, message: "User already exists."})
         } else {
-            const userDoc: UserDocInternal = await CreateUser(user)
+            const controllers = await commonCollectionHandlers
+            const userDoc: UserDocInternal = await controllers.Users.CreateUser(user)
             const {_id} = userDoc
             if(_id){
                 // TODO Need to verify user through email
@@ -144,7 +151,6 @@ router.get("/profile", GetProfileHandler)
 router.get("/token/:event_id", GetToken)
 
 router.get("/token/valid/:event_id", Token)
-
 
 export default router
 

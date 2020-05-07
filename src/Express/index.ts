@@ -20,7 +20,7 @@ const PrepareApp = (app: Express): Express => {
 }
 
 const PrepareServer = (server: Http2Server): Promise<Http2Server> => {
-    return StartDB().then(() => {
+    return StartDB.then(() => {
         server.listen(config.port)
 
         server.on('listening', () => {

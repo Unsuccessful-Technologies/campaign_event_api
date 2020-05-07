@@ -4,7 +4,6 @@ import {
     AggBaseEvent,
     BaseEvent,
     BaseEventRaw,
-    EventType,
     NewEventBody,
     TokenPayload,
     UserDocInternal
@@ -12,12 +11,11 @@ import {
 import {verify} from "jsonwebtoken";
 import config from "../../config";
 import {
+    commonCollectionHandlers,
     CreateEvent,
     CreateOrganization,
-    CreateUser, CreateUserSpaceHolder,
     GetEventByID,
-    GetManyUsers, GetPublicEvents,
-    GetUserByEmail,
+    GetPublicEvents,
     UpdateEventByID
 } from "../../Database";
 import {GetPayloadHeader, isAuthentic} from "./auth";
@@ -183,14 +181,15 @@ const AddUserHandler = async (req: Request, res: Response, next: NextFunction) =
         if( !(type === 'admin' || type === 'member') ){
             res.status(400).json({message: "Invalid Type"})
         }
-        const user = await GetUserByEmail(email)
+        const controllers = await commonCollectionHandlers
+        const user = await controllers.Users.GetUserByEmail(email)
         const eventDoc = await GetEventByID(event_id)
         let new_user_id = null
 
         if(user){
             new_user_id = user._id
         } else {
-            new_user_id = await CreateUserSpaceHolder(email)
+            new_user_id = await controllers.Users.CreateUserSpaceHolder(email)
         }
 
         switch(type) {
@@ -291,10 +290,7 @@ router.post('/user/:event_id', AddUserHandler)
 
 router.delete('/user/:event_id', DeleteUserHandler)
 
-
 export default router
-
-
 
 const GetUserId = (token:string): ObjectId => {
     const token_payload: TokenPayload = <TokenPayload>verify(token, config.secret)

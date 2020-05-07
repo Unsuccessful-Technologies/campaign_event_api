@@ -10,10 +10,11 @@ import {
     OrganizationDoc, TicketedEventDoc,
     UserDocInternal, UserSpaceHolder
 } from "../interfaces";
+import CollectionHandlers from '@unsuccessful-technologies/mongodbcollectionhandlers'
 
 let db: Db
 
-const StartDB = async () => {
+const StartDB = async (): Promise<Db> => {
     try {
         const client: MongoClient = await MongoClient.connect(config.mongodb.url, {useUnifiedTopology: true})
         db = await client.db(config.mongodb.database_name)
@@ -23,7 +24,11 @@ const StartDB = async () => {
     }
 }
 
-export default StartDB
+const dbPromise = StartDB()
+
+export default dbPromise
+
+export const commonCollectionHandlers = CollectionHandlers(dbPromise)
 
 /** Example for searching events */
 // export const FindEvents = async (payload: FindEventsPayload) => {
@@ -33,64 +38,6 @@ export default StartDB
 //
 //     return await Users.find(query).toArray()
 // }
-
-export const CreateUser = async (payload: CreateUserPayload): Promise<UserDocInternal> => {
-    const Users = db.collection('Users')
-    const userScrubbed: CreateUserPayload = {
-        fName: payload.fName.toLowerCase(),
-        lName: payload.lName.toLowerCase(),
-        email: payload.email.toLowerCase(),
-        phone: payload.phone,
-        password: payload.password
-    }
-    const response = await Users.insertOne(userScrubbed)
-    const result = {
-        ...payload,
-        _id: response.insertedId
-    }
-    return result
-}
-
-export const CreateUserSpaceHolder = async (email: string): Promise<UserSpaceHolder> => {
-    const UserSpaceHolders = db.collection('UserSpaceHolders')
-    const userScrubbed: UserSpaceHolder = {
-        _id: new ObjectId(),
-        email: email,
-        notJoined: true
-    }
-    const response = await UserSpaceHolders.insertOne(userScrubbed)
-    const result = response.insertedId
-    return result
-}
-
-const GetUser = async (query: {[propName:string]: any}): Promise<UserDocInternal> => {
-    const Users = db.collection('Users')
-    return await Users.findOne(query)
-}
-
-export const GetManyUsers = async (user_ids: string []): Promise<UserDocInternal[]> => {
-    const user_obj_ids: ObjectId [] = user_ids.map(id => new ObjectId(id))
-    const Users = db.collection('Users')
-    const query = { _id: { $in: user_obj_ids } }
-    return await Users.find(query, {projection: {password: -1}}).toArray()
-}
-
-export const GetUserByEmail = async (email: string): Promise<UserDocInternal> => {
-    const query = {email: email.toLowerCase()}
-    return GetUser(query)
-}
-
-export const UserExists = async (email: string): Promise<boolean> => {
-    let result = true
-    let user = await GetUserByEmail(email)
-    return result && !!user
-
-}
-
-export const GetUserByID = async (_id: string) => {
-    const query = {_id}
-    return GetUser(query)
-}
 
 export const CreateOrganization = async (payload: Organization): Promise<OrganizationDoc> => {
     const Organizations = db.collection('Organizations')
